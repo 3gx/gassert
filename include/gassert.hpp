@@ -64,7 +64,8 @@ struct expression_string
 {
   string filename;
   string linenumber;
-  string expr;
+  string lhs_expr;
+  string rhs_expr;
   string lhs_value;
   string rhs_value;
   static_string<2> op;
@@ -82,6 +83,9 @@ private:
   bool const expected;
   bool const result;
   static_string<2> const op;
+  
+  int  lhs_expr_begin, lhs_expr_end;
+  int  rhs_expr_begin, rhs_expr_end;
 
 public:
   _LIBNV_ANNOTATE
@@ -90,7 +94,22 @@ public:
              static_string<2> op)
       : filename(filename), linenumber(linenumber), expr(expr), lhs_value(lhs),
         rhs_value(rhs), result(result), expected(expected), op(op)
-  {}
+  {
+    int displ = 0;
+    while (expr[displ] && !isalnum(expr[displ]))
+      ++displ;
+    lhs_expr_begin = displ;
+    while (expr[displ] && isalnum(expr[displ]))
+      ++displ;
+    lhs_expr_end = displ;
+    
+    while (expr[displ] && !isalnum(expr[displ]))
+      ++displ;
+    rhs_expr_begin = displ;
+    while (expr[displ] && isalnum(expr[displ]))
+      ++displ;
+    rhs_expr_end = displ;
+  }
 
   _LIBNV_ANNOTATE
   operator bool() const 
@@ -103,7 +122,8 @@ public:
     return {
         filename, 
         to_string(linenumber),
-        expr, 
+        string(expr+lhs_expr_begin, expr+lhs_expr_end),
+        string(expr+rhs_expr_begin, expr+rhs_expr_end),
         to_string(lhs_value),
         to_string(rhs_value), 
         op
@@ -234,6 +254,11 @@ struct failed_on_host
     void push_back(expression_string expr)
     {
       failed.push_back(expr);
+    }
+
+    bool empty() const 
+    {
+      return failed.size() == 0;
     }
 };
 
