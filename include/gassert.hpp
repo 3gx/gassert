@@ -276,6 +276,7 @@ void eager(expression<LHS,RHS> expr)
 
 } // namespace assert_expr
 #define ASSERT(expr) (eager(gassert::eval(__FILE__, __LINE__, #expr, true)->* expr))
+#define ASSERT_FALSE(expr) (eager(gassert::eval(__FILE__, __LINE__, #expr, false)->* expr))
 
 
 #ifdef _UNDEF_LIBNV_ANNOTATE

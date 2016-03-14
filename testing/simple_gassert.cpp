@@ -5,7 +5,7 @@
 
 int main(int argc, char *argv[])
 {
-  ASSERT(argc <= 1);
+  ASSERT_FALSE(argc <= 1);
   auto &s = gassert::failed_on_host::get_instance();
   fprintf(stderr, " s.failed.size() = %d\n", (int)s.failed.size());
 
