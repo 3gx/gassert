@@ -9,6 +9,10 @@
 #define _UNDEF_LIBNV_ANNOTATE
 #endif
 
+#include <string>
+#include <vector>
+#include <csetjmp>
+
 namespace gassert
 {
 
@@ -20,10 +24,10 @@ private:
   size_t size_;
 public:
   _LIBNV_ANNOTATE
-  static_sting(static_string const &) = default;
+  static_string(static_string const &) = default;
 
   _LIBNV_ANNOTATE
-  static_sting(const char *str)
+  static_string(const char *str)
   {
     size_ = 0;
     while (str[size_] != 0 || size_ <= N)
@@ -52,8 +56,21 @@ struct fails
   static_string<256> filename;
 }; // struct translation_unit
 
+using std::string;
+using std::to_string;
+using std::vector;
 
-template<class OP, class LHS, class RHS>
+struct expression_string
+{
+  string filename;
+  string linenumber;
+  string expr;
+  string lhs_value;
+  string rhs_value;
+  static_string<2> op;
+};
+
+template<class LHS, class RHS>
 struct expression
 {
 private:
@@ -71,18 +88,37 @@ public:
   expression(char const *filename, int linenumber, char const *expr,
              LHS const &lhs, RHS const &rhs, bool result, bool expected,
              static_string<2> op)
-      : filename(filename), linenumber(linenumber), lhs_value(lhs),
-        rhs_value(rhs), result(result), expected(), op(op)
+      : filename(filename), linenumber(linenumber), expr(expr), lhs_value(lhs),
+        rhs_value(rhs), result(result), expected(expected), op(op)
   {}
+
+  _LIBNV_ANNOTATE
+  operator bool() const 
+  {
+    return expected == result;
+  }
+
+  expression_string to_expr_string() const
+  {
+    return {
+        filename, 
+        to_string(linenumber),
+        expr, 
+        to_string(lhs_value),
+        to_string(rhs_value), 
+        op
+    };
+  }
 };
 
+struct eval;
 
 template <class LHS> 
 struct comparator
 {
 private:
   char const *filename;
-  int cont line_number;
+  int const line_number;
   char const *expr;
   LHS const lhs;
   bool const expected;
@@ -93,8 +129,9 @@ private:
   comparator(char const *filename, int const line_number, char const *expr,
              const LHS &lhs, const bool expected)
       : filename(filename), line_number(line_number), expr(expr), lhs(lhs),
-        expecrted(expected)
-  {}
+        expected(expected)
+  {
+  }
 
 public:
   //  operator==
@@ -162,15 +199,14 @@ struct eval
 {
 private:
   const char *filename;
-  const int line_number;
+  const int linenumber;
   const char *expr;
   const bool expected;
 
 public:
   _LIBNV_ANNOTATE
-  eval(const char *filename, const int *line_number, const bool expected,
-       const char *expr)
-      : filename(filename), line_number(line_number), expr(expr),
+  eval(const char *filename, int linenumber, const char *expr, bool expected)
+      : filename(filename), linenumber(linenumber), expr(expr),
         expected(expected)
   {}
 
@@ -178,12 +214,43 @@ public:
   _LIBNV_ANNOTATE
   comparator<LHS> operator->*(LHS const &lhs)
   {
-    return comparator<LHS>(filename, line_number, expr, lhs, expected);
+    return comparator<LHS>(filename, linenumber, expr, lhs, expected);
   }
 }; // eval 
 
+struct failed_on_host
+{
+  vector<expression_string> failed;
+  private:
+    failed_on_host() = default;
+    ~failed_on_host() = default;
+  public:
+    static failed_on_host& get_instance() 
+    {
+      static failed_on_host s;
+      return s;
+    }
+
+    void push_back(expression_string expr)
+    {
+      failed.push_back(expr);
+    }
+};
+
+struct assert_fail {};
+
+template<class LHS, class RHS>
+void eager(expression<LHS,RHS> expr)
+{
+  if (!expr)
+  {
+    failed_on_host::get_instance().push_back(expr.to_expr_string());
+  }
+}
+
+
 } // namespace assert_expr
-#define ASSERT(expr) (eager(assert_expr::eval(__FILE__, __LINE__, #expr, true)->* expr))
+#define ASSERT(expr) (eager(gassert::eval(__FILE__, __LINE__, #expr, true)->* expr))
 
 
 #ifdef _UNDEF_LIBNV_ANNOTATE
