@@ -82,9 +82,25 @@ struct fails
 }; // struct translation_unit
 
 
+#if 0
+template<class T, class N>
+struct shared_vector
+{
+  char* data_[N];
+  int size_;
+
+  __device__
+  void push_back(T const& t) 
+  {
+    int idx = atomicAdd
+  }
+}
+#endif
+
+
 struct value
 {
-  enum 
+  enum
   {
     INT32,
     UINT32,
@@ -95,10 +111,9 @@ struct value
     POINTER
   } type;
 
-  typedef void* pointer;
+  typedef void *pointer;
 
-  union
-  {
+  union {
     int32_t int32_;
     uint32_t uint32_;
     int64_t int64_;
@@ -108,25 +123,52 @@ struct value
     pointer pointer_;
   } element;
 
-  _LIBNV_ANNOTATE 
-  value(int32_t const&t) { element.int32_ = t; type = INT32; }
-  _LIBNV_ANNOTATE 
-  value(uint32_t const&t) { element.uint32_ = t; type = UINT32; }
-  _LIBNV_ANNOTATE 
-  value(int64_t const&t) { element.int64_ = t; type = INT64; }
-  _LIBNV_ANNOTATE 
-  value(uint64_t const&t) { element.uint64_ = t; type = UINT64; }
-  _LIBNV_ANNOTATE 
-  value(float const&t) { element.float_ = t; type = FLOAT; }
-  _LIBNV_ANNOTATE 
-  value(double const&t) { element.double_ = t; type = DOUBLE; }
-  _LIBNV_ANNOTATE 
-  value(pointer const&t) { element.pointer_ = t; type = POINTER; }
-
-
-  friend ostream& operator<<(ostream &os, value const &v)
+  _LIBNV_ANNOTATE
+  value(int32_t const &t)
   {
-    switch(v.type)
+    element.int32_ = t;
+    type = INT32;
+  }
+  _LIBNV_ANNOTATE
+  value(uint32_t const &t)
+  {
+    element.uint32_ = t;
+    type = UINT32;
+  }
+  _LIBNV_ANNOTATE
+  value(int64_t const &t)
+  {
+    element.int64_ = t;
+    type = INT64;
+  }
+  _LIBNV_ANNOTATE
+  value(uint64_t const &t)
+  {
+    element.uint64_ = t;
+    type = UINT64;
+  }
+  _LIBNV_ANNOTATE
+  value(float const &t)
+  {
+    element.float_ = t;
+    type = FLOAT;
+  }
+  _LIBNV_ANNOTATE
+  value(double const &t)
+  {
+    element.double_ = t;
+    type = DOUBLE;
+  }
+  _LIBNV_ANNOTATE
+  value(pointer const &t)
+  {
+    element.pointer_ = t;
+    type = POINTER;
+  }
+
+  friend ostream &operator<<(ostream &os, value const &v)
+  {
+    switch (v.type)
     {
     case INT32:
       return os << v.element.int32_;
@@ -153,14 +195,15 @@ struct expression_string
 {
 private:
   uint32_t linenumber_ : 30;
-  bool     result_     : 1;
-  bool     expected_   : 1;
+  bool result_ : 1;
+  bool expected_ : 1;
   value lhs_value_;
   value rhs_value_;
   static_string<2> op_;
   static_string<256> expr_;
+
 public:
-  expression_string(expression_string const&) = default;
+  expression_string(expression_string const &) = default;
 
   template <class LHS, class RHS>
   _LIBNV_ANNOTATE expression_string(int linenumber, bool result, bool expected,
@@ -168,20 +211,16 @@ public:
                                     const char *expr, const char *op)
       : linenumber_(linenumber), result_(result), expected_(expected),
         lhs_value_(lhs), rhs_value_(rhs), expr_(expr), op_(op)
-  {}
+  {
+  }
 
   int linenumber() const { return linenumber_; }
-  bool result() const {return result_; }
-  bool expected() const {return expected_;}
+  bool result() const { return result_; }
+  bool expected() const { return expected_; }
 
-  string op() const
-  {
-    return string(op_.c_str());
-  }
-  string expr() const 
-  {
-    return string(expr_.c_str());
-  }
+  string op() const { return string(op_.c_str()); }
+  string expr() const { return string(expr_.c_str()); }
+  operator bool() const { return expected_ == result_; }
   string lhs_expr() const
   {
     int displ = 0;
@@ -192,25 +231,23 @@ public:
       ++displ;
     int lhs_expr_end = displ;
 
-    return string(expr_.c_str() + lhs_expr_begin,
-                  expr_.c_str() + lhs_expr_end);
+    return string(expr_.c_str() + lhs_expr_begin, expr_.c_str() + lhs_expr_end);
   }
-  string rhs_expr() const 
+  string rhs_expr() const
   {
     int displ = 0;
     while (expr_[displ] && !isalnum(expr_[displ]))
       ++displ;
     while (expr_[displ] && isalnum(expr_[displ]))
       ++displ;
-    
+
     while (expr_[displ] && !isalnum(expr_[displ]))
       ++displ;
     int rhs_expr_begin = displ;
     while (expr_[displ] && isalnum(expr_[displ]))
       ++displ;
     int rhs_expr_end = displ;
-    return string(expr_.c_str() + rhs_expr_begin,
-                  expr_.c_str() + rhs_expr_end);
+    return string(expr_.c_str() + rhs_expr_begin, expr_.c_str() + rhs_expr_end);
   }
   string lhs_value() const
   {
@@ -238,7 +275,7 @@ private:
   bool const expected;
   bool const result;
   static_string<2> const op;
-  
+
 public:
   _LIBNV_ANNOTATE
   expression(char const *filename, int linenumber, char const *expr,
@@ -246,13 +283,11 @@ public:
              static_string<2> op)
       : filename(filename), linenumber(linenumber), expr(expr), lhs(lhs),
         rhs(rhs), result(result), expected(expected), op(op)
-  {}
+  {
+  }
 
   _LIBNV_ANNOTATE
-  operator bool() const 
-  {
-    return expected == result;
-  }
+  operator bool() const { return expected == result; }
 
   expression_string to_expr_string() const
   {
