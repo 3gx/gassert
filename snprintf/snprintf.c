@@ -1023,3 +1023,11 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap) {
   return (int) str_l;
 }
 #endif
+
+int main(int argc, char * argv[])
+{
+  char str[256];
+
+  snprintf(str, 256, "%g \n", 123.0*argc);
+  printf("str= %s\n", str);
+}
