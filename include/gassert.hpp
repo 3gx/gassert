@@ -24,6 +24,64 @@ using std::to_string;
 using std::vector;
 using std::ostream;
 
+template<class T>
+struct atomic_base
+{
+  T *t;
+  atomic_base(const T& _t)
+  {
+    cudaStatus_t status = cudaMallocManaged(&t, sizeof(T));
+    new (t) T(_t);
+    assert(cudaSuccess == status);
+  }
+  ~T()
+  {
+    t->~T();
+    cudaStatus_t status = cudaFree(t);
+    assert(cudaSuccess == status);
+  }
+};
+
+template<class T>
+struct atomic;
+
+template<>
+struct atomic<int> : atomic_base<int>
+{
+  using base_t = atomic_base<int>;
+  using base_t::t;
+
+  atomic(const int i = 0) : base_t(i) {}
+  ~atomic() {}
+
+  __device__ __host__
+  int operator++()
+  {
+#ifdef __CUDA_ARCH__
+    return atomicInc(t);
+#else
+    const int prev = *t;
+    (*t)++;
+    return t;
+#endif
+  }
+};
+
+  __device__ __host__
+  int operator++() 
+  {
+#ifdef __CUDA_ARCH__
+    return atomicAdd(t,1);
+#else
+#endif
+  }
+};
+
+template<class T>
+struct shared_vector
+{
+};
+
 template<size_t N>
 struct static_string
 {
