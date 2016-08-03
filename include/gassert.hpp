@@ -1,32 +1,24 @@
 #pragma once
+#include <cstdio>
+#include <cassert>
 
-#ifndef _LIBNV_ANNOTATE
-#ifdef __CUDACC__
-#define _LIBNV_ANNOTATE __host__ __device__
-#else
-#define _LIBNV_ANNOTATE
+#ifndef __CUDACC__
+#define __host__
+#define __device__
 #endif
-#define _UNDEF_LIBNV_ANNOTATE
-#endif
-
-#include <string>
-#include <vector>
-#include <csetjmp>
 
 namespace gassert
 {
 
-template<size_t N>
+template<int N>
 struct static_string
 {
 private:
   char str_[N+1];
-  size_t size_;
+  int size_;
 public:
-  _LIBNV_ANNOTATE
-  static_string(static_string const &) = default;
 
-  _LIBNV_ANNOTATE
+  __host__ __device__
   static_string(const char *str)
   {
     size_ = 0;
@@ -37,39 +29,41 @@ public:
     }
     str_[size_] = 0;
   }
+  
+  __host__ __device__
+  static_string(const char *str, int count)
+  {
+    size_ = 0;
+    while ((str[size_] != 0 || size_ <= N) && count > 0)
+    {
+      str_[size_] = str[size_];
+      ++size_;
+      count--;
+    }
+    str_[size_] = 0;
+  }
 
-  _LIBNV_ANNOTATE
+  __host__ __device__
   char const* c_str() const 
   {
     return str_;
   }
-  _LIBNV_ANNOTATE
-  size_t size() const 
+  __host__ __device__
+  int size() const 
   {
     return size_;
   }
 }; // struct static_string
 
-template<size_t N>
-struct fails
+  __host__ __device__
+bool __isalnum(char c)
 {
-  static_string<256> filename;
-}; // struct translation_unit
-
-using std::string;
-using std::to_string;
-using std::vector;
-
-struct expression_string
-{
-  string filename;
-  string linenumber;
-  string lhs_expr;
-  string rhs_expr;
-  string lhs_value;
-  string rhs_value;
-  static_string<2> op;
-};
+  bool ret = false;
+  ret |= c >= '0' && c <= '9';
+  ret |= c >= 'a' && c <= 'z';
+  ret |= c >= 'A' && c <= 'Z';
+  return ret;
+}
 
 template<class LHS, class RHS>
 struct expression
@@ -88,7 +82,7 @@ private:
   int  rhs_expr_begin, rhs_expr_end;
 
 public:
-  _LIBNV_ANNOTATE
+  __host__ __device__
   expression(char const *filename, int linenumber, char const *expr,
              LHS const &lhs, RHS const &rhs, bool result, bool expected,
              static_string<2> op)
@@ -96,38 +90,63 @@ public:
         rhs_value(rhs), result(result), expected(expected), op(op)
   {
     int displ = 0;
-    while (expr[displ] && !isalnum(expr[displ]))
+    while (expr[displ] && !__isalnum(expr[displ]))
       ++displ;
     lhs_expr_begin = displ;
-    while (expr[displ] && isalnum(expr[displ]))
+    while (expr[displ] && __isalnum(expr[displ]))
       ++displ;
     lhs_expr_end = displ;
     
-    while (expr[displ] && !isalnum(expr[displ]))
+    while (expr[displ] && !__isalnum(expr[displ]))
       ++displ;
     rhs_expr_begin = displ;
-    while (expr[displ] && isalnum(expr[displ]))
+    while (expr[displ] && __isalnum(expr[displ]))
       ++displ;
     rhs_expr_end = displ;
   }
 
-  _LIBNV_ANNOTATE
+  __host__ __device__
   operator bool() const 
   {
     return expected == result;
   }
 
-  expression_string to_expr_string() const
+  //-----------------------------------
+  // Specialize value printing here
+  //-----------------------------------
+
+  __host__ __device__
+  void print_value(int val) const
   {
-    return {
-        filename, 
-        to_string(linenumber),
-        string(expr+lhs_expr_begin, expr+lhs_expr_end),
-        string(expr+rhs_expr_begin, expr+rhs_expr_end),
-        to_string(lhs_value),
-        to_string(rhs_value), 
-        op
-    };
+    printf("%d",val);
+  }
+  __host__ __device__
+  void print_value(float val)
+  {
+    printf("%f",val);
+  }
+
+
+
+  __host__ __device__
+  void print(const char *what, const char *aux="") const
+  {
+    printf("\n%s:%d FAILED: \n", filename, linenumber);
+    const int N = 16;
+    typedef static_string<N> expr_t;
+    expr_t lhs(expr+lhs_expr_begin, lhs_expr_end-lhs_expr_begin);
+    expr_t rhs(expr+rhs_expr_begin, rhs_expr_end-rhs_expr_begin);
+    printf("    %s(", what);
+    printf("%s %s %s", lhs.c_str(), op.c_str(), rhs.c_str());
+    printf(")\n");
+    printf("with expansion:\n");
+
+    printf("    %s(",aux);
+    print_value(lhs_value);
+    printf(" %s ", op.c_str());
+    print_value(rhs_value);
+    printf(")"); 
+    printf("\n\n");
   }
 };
 
@@ -143,9 +162,9 @@ private:
   LHS const lhs;
   bool const expected;
 
-  friend eval;
+public:
 
-  _LIBNV_ANNOTATE
+  __host__ __device__
   comparator(char const *filename, int const line_number, char const *expr,
              const LHS &lhs, const bool expected)
       : filename(filename), line_number(line_number), expr(expr), lhs(lhs),
@@ -153,10 +172,9 @@ private:
   {
   }
 
-public:
   //  operator==
   template <class RHS> 
-  _LIBNV_ANNOTATE
+  __host__ __device__
   expression<LHS, RHS> operator==(RHS const &rhs)
   {
     const bool result = lhs == rhs;
@@ -166,7 +184,7 @@ public:
 
   //  operator!= 
   template <class RHS> 
-  _LIBNV_ANNOTATE
+  __host__ __device__
   expression<LHS, RHS> operator!=(RHS const &rhs)
   {
     const bool result = lhs != rhs;
@@ -176,7 +194,7 @@ public:
   
   //  operator>= 
   template<class RHS>
-  _LIBNV_ANNOTATE
+  __host__ __device__
   expression<LHS,RHS> operator>=(RHS const &rhs)
   {
     const bool result = lhs >= rhs;
@@ -186,7 +204,7 @@ public:
 
   //  operator>
   template<class RHS>
-  _LIBNV_ANNOTATE
+  __host__ __device__
   expression<LHS,RHS> operator>(RHS const &rhs)
   {
     const bool result = lhs > rhs;
@@ -196,7 +214,7 @@ public:
 
   //  operator<= 
   template<class RHS> 
-  _LIBNV_ANNOTATE
+  __host__ __device__
   expression<LHS,RHS> operator<=(RHS const &rhs)
   {
     const bool result = lhs <= rhs;
@@ -206,7 +224,7 @@ public:
 
   //  operator<
   template<class RHS>
-  _LIBNV_ANNOTATE
+  __host__ __device__
   expression<LHS,RHS> operator<(RHS const &rhs)
   {
     const bool result = lhs < rhs;
@@ -224,62 +242,74 @@ private:
   const bool expected;
 
 public:
-  _LIBNV_ANNOTATE
+  __host__ __device__
   eval(const char *filename, int linenumber, const char *expr, bool expected)
       : filename(filename), linenumber(linenumber), expr(expr),
         expected(expected)
   {}
 
   template <class LHS>
-  _LIBNV_ANNOTATE
+  __host__ __device__
   comparator<LHS> operator->*(LHS const &lhs)
   {
     return comparator<LHS>(filename, linenumber, expr, lhs, expected);
   }
 }; // eval 
 
-struct failed_on_host
+void __host__ __device__
+trap() 
 {
-  vector<expression_string> failed;
-  private:
-    failed_on_host() = default;
-    ~failed_on_host() = default;
-  public:
-    static failed_on_host& get_instance() 
-    {
-      static failed_on_host s;
-      return s;
-    }
-
-    void push_back(expression_string expr)
-    {
-      failed.push_back(expr);
-    }
-
-    bool empty() const 
-    {
-      return failed.size() == 0;
-    }
-};
-
-struct assert_fail {};
+  assert(0);
+}
 
 template<class LHS, class RHS>
-void eager(expression<LHS,RHS> expr)
+void __host__ __device__
+require(expression<LHS,RHS> expr)
 {
   if (!expr)
   {
-    failed_on_host::get_instance().push_back(expr.to_expr_string());
+    expr.print("ASSERT");
+    trap();
   }
 }
 
 
-} // namespace assert_expr
-#define ASSERT(expr) (eager(gassert::eval(__FILE__, __LINE__, #expr, true)->* expr))
-#define ASSERT_FALSE(expr) (eager(gassert::eval(__FILE__, __LINE__, #expr, false)->* expr))
+template<class LHS, class RHS>
+__host__ __device__
+void require_false(expression<LHS,RHS> expr)
+{
+  if (!expr)
+  {
+    expr.print("ASSERT_FALSE","!");
+    trap();
+  }
+}
+
+template <class LHS, class RHS>
+void __host__ __device__ 
+check(expression<LHS, RHS> expr) 
+{
+  if (!expr)
+  {
+    expr.print("CHECK");
+  }
+}
 
 
-#ifdef _UNDEF_LIBNV_ANNOTATE
-#undef _UNDEF_LIBNV_ANNOTATE
-#undef _LIBNV_ANNOTATE
-#endif
+template<class LHS, class RHS>
+void __host__ __device__
+check_false(expression<LHS,RHS> expr)
+{
+  if (!expr)
+  {
+    expr.print("CHECK_FALSE","!");
+  }
+}
+
+
+} // namespace gassert
+#define REQUIRE(expr) (gassert::require(gassert::eval(__FILE__, __LINE__, #expr, true)->* expr))
+#define REQUIRE_FALSE(expr) (gassert::require_false(gassert::eval(__FILE__, __LINE__, #expr, false)->* expr))
+#define CHECK(expr) (gassert::check(gassert::eval(__FILE__, __LINE__, #expr, true)->* expr))
+#define CHECK_FALSE(expr) (gassert::check_false(gassert::eval(__FILE__, __LINE__, #expr, false)->* expr))
+

@@ -1,11 +1,11 @@
-#include <cstdio>
 #include <gassert.hpp>
-#include <vector>
 
 
 int main(int argc, char *argv[])
 {
-  ASSERT_FALSE(argc <= 1);
+  CHECK(argc <= 1);
+  REQUIRE_FALSE(argc <= 3);
+#if 0
   auto &s = gassert::failed_on_host::get_instance();
   fprintf(stderr, " s.failed.size() = %d\n", (int)s.failed.size());
 
@@ -17,5 +17,6 @@ int main(int argc, char *argv[])
            x.rhs_expr.c_str(), x.lhs_value.c_str(), x.op.c_str(),
            x.rhs_value.c_str());
   }
+#endif
 }
 
