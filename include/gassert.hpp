@@ -5,6 +5,7 @@
 #ifndef __CUDACC__
 #define __host__
 #define __device__
+#define __global__
 #endif
 
 namespace gassert
@@ -22,7 +23,7 @@ public:
   static_string(const char *str)
   {
     size_ = 0;
-    while (str[size_] != 0 || size_ <= N)
+    while (str[size_] != 0 && size_ <= N)
     {
       str_[size_] = str[size_];
       ++size_;
@@ -34,7 +35,7 @@ public:
   static_string(const char *str, int count)
   {
     size_ = 0;
-    while ((str[size_] != 0 || size_ <= N) && count > 0)
+    while (str[size_] != 0 && size_ <= N && count > 0)
     {
       str_[size_] = str[size_];
       ++size_;
@@ -126,27 +127,47 @@ public:
     printf("%f",val);
   }
 
-
-
   __host__ __device__
   void print(const char *what, const char *aux="") const
   {
-    printf("\n%s:%d FAILED: \n", filename, linenumber);
+#ifndef GASSERT_NO_COLOURS
+#define GASSERT_RESET      "\033[0m"
+#define GASSERT_BOLDRED    "\033[1m\033[31m" 
+#define GASSERT_GREEN      "\033[32m"
+#define GASSERT_GREY       "\033[90m"
+#define GASSERT_BOLDBLACK  "\033[1m\033[30m"
+#else
+#define GASSERT_RESET      ""
+#define GASSERT_BOLDRED    ""
+#define GASSERT_GREEN      ""
+#define GASSERT_GREY       ""
+#define GASSERT_BOLDBLACK  ""
+#endif
+
+    printf(GASSERT_BOLDBLACK "\n%s:%d " 
+           GASSERT_BOLDRED "[FAILED]" GASSERT_RESET "\n", 
+           filename, linenumber);
     const int N = 16;
     typedef static_string<N> expr_t;
     expr_t lhs(expr+lhs_expr_begin, lhs_expr_end-lhs_expr_begin);
     expr_t rhs(expr+rhs_expr_begin, rhs_expr_end-rhs_expr_begin);
-    printf("    %s(", what);
+    printf(GASSERT_GREY "    %s(", what);
     printf("%s %s %s", lhs.c_str(), op.c_str(), rhs.c_str());
-    printf(")\n");
+    printf(")" GASSERT_RESET "\n");
     printf("with expansion:\n");
 
-    printf("    %s(",aux);
+    printf(GASSERT_GREEN "    %s(",aux);
     print_value(lhs_value);
     printf(" %s ", op.c_str());
     print_value(rhs_value);
-    printf(")"); 
+    printf(")" GASSERT_RESET); 
     printf("\n\n");
+
+#undef GASSERT_RESET
+#undef GASSERT_BOLDRED
+#undef GASSERT_GREEN
+#undef GASSERT_GREY
+#undef GASSERT_BOLDBLACK
   }
 };
 
