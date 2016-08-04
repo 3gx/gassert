@@ -77,7 +77,7 @@ private:
   RHS const rhs_value;
   bool const expected;
   bool const result;
-  static_string<2> const op;
+  const char *op;
   
   int  lhs_expr_begin, lhs_expr_end;
   int  rhs_expr_begin, rhs_expr_end;
@@ -86,7 +86,7 @@ public:
   __host__ __device__
   expression(char const *filename, int linenumber, char const *expr,
              LHS const &lhs, RHS const &rhs, bool result, bool expected,
-             static_string<2> op)
+             const char * op)
       : filename(filename), linenumber(linenumber), expr(expr), lhs_value(lhs),
         rhs_value(rhs), result(result), expected(expected), op(op)
   {
@@ -152,13 +152,13 @@ public:
     expr_t lhs(expr+lhs_expr_begin, lhs_expr_end-lhs_expr_begin);
     expr_t rhs(expr+rhs_expr_begin, rhs_expr_end-rhs_expr_begin);
     printf(GASSERT_GREY "    %s(", what);
-    printf("%s %s %s", lhs.c_str(), op.c_str(), rhs.c_str());
+    printf("%s %s %s", lhs.c_str(), op, rhs.c_str());
     printf(")" GASSERT_RESET "\n");
     printf("with expansion:\n");
 
     printf(GASSERT_GREEN "    %s(", (expected ? "" : "!"));
     print_value(lhs_value);
-    printf(" %s ", op.c_str());
+    printf(" %s ", op);
     print_value(rhs_value);
     printf(")" GASSERT_RESET); 
     printf("\n\n");
@@ -193,14 +193,26 @@ public:
   {
   }
 
+private:
+
+  template<class RHS>
+  __host__ __device__
+  expression<LHS,RHS> construct_expression(RHS const &rhs, 
+                                           bool result, 
+                                           const char *op)
+  {
+    return expression<LHS, RHS>(filename, line_number, expr, lhs, rhs, result,
+                                expected, op);
+  }
+                                           
+public:
+
   //  operator==
   template <class RHS> 
   __host__ __device__
   expression<LHS, RHS> operator==(RHS const &rhs)
   {
-    const bool result = lhs == rhs;
-    return expression<LHS, RHS>(filename, line_number, expr, lhs, rhs, result,
-                                expected, "==");
+    return construct_expression(rhs, lhs == rhs, "==");
   }
 
   //  operator!= 
@@ -208,9 +220,7 @@ public:
   __host__ __device__
   expression<LHS, RHS> operator!=(RHS const &rhs)
   {
-    const bool result = lhs != rhs;
-    return expression<LHS, RHS>(filename, line_number, expr, lhs, rhs, result,
-                                expected, "!=");
+    return construct_expression(rhs, lhs != rhs, "!=");
   }
   
   //  operator>= 
@@ -218,9 +228,7 @@ public:
   __host__ __device__
   expression<LHS,RHS> operator>=(RHS const &rhs)
   {
-    const bool result = lhs >= rhs;
-    return expression<LHS, RHS>(filename, line_number, expr, lhs, rhs, result,
-                                expected, ">=");
+    return construct_expression(rhs, lhs >= rhs, ">=");
   }
 
   //  operator>
@@ -228,9 +236,7 @@ public:
   __host__ __device__
   expression<LHS,RHS> operator>(RHS const &rhs)
   {
-    const bool result = lhs > rhs;
-    return expression<LHS, RHS>(filename, line_number, expr, lhs, rhs, result,
-                                expected, ">");
+    return construct_expression(rhs, lhs > rhs, ">");
   }
 
   //  operator<= 
@@ -238,9 +244,7 @@ public:
   __host__ __device__
   expression<LHS,RHS> operator<=(RHS const &rhs)
   {
-    const bool result = lhs <= rhs;
-    return expression<LHS, RHS>(filename, line_number, expr, lhs, rhs, result,
-                                expected, "<=");
+    return construct_expression(rhs, lhs <= rhs, "<=");
   }
 
   //  operator<
@@ -248,9 +252,7 @@ public:
   __host__ __device__
   expression<LHS,RHS> operator<(RHS const &rhs)
   {
-    const bool result = lhs < rhs;
-    return expression<LHS, RHS>(filename, line_number, expr, lhs, rhs, result,
-                                expected, "<");
+    return construct_expression(rhs, lhs < rhs, "<");
   }
 }; // struct comparator
 
