@@ -125,7 +125,7 @@ public:
     printf("%d",val);
   }
   __host__ __device__
-  void print_value(float val)
+  void print_value(float val) const
   {
     printf("%f",val);
   }
