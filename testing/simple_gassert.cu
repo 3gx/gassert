@@ -6,8 +6,9 @@
 
 __device__ void test(int argc)
 {
-  CHECK(argc > 1);
+  CHECK_FALSE(argc > 1);
   REQUIRE_FALSE(argc <= 3);
+  REQUIRE(argc <= 2);
 }
 
 __global__ void  kernel(int argc)

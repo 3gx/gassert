@@ -281,7 +281,11 @@ public:
 void __host__ __device__
 trap() 
 {
+#ifdef __CUDA_ARCH__
+  asm("trap;");
+#else
   assert(0);
+#endif
 }
 
 template<class LHS, class RHS>
