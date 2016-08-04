@@ -75,9 +75,9 @@ private:
   char const *expr;
   LHS const lhs_value;
   RHS const rhs_value;
-  bool const expected;
   bool const result;
   const char *op;
+  bool expected;
   
   int  lhs_expr_begin, lhs_expr_end;
   int  rhs_expr_begin, rhs_expr_end;
@@ -85,10 +85,10 @@ private:
 public:
   __host__ __device__
   expression(char const *filename, int linenumber, char const *expr,
-             LHS const &lhs, RHS const &rhs, bool result, bool expected,
+             LHS const &lhs, RHS const &rhs, bool result,
              const char * op)
       : filename(filename), linenumber(linenumber), expr(expr), lhs_value(lhs),
-        rhs_value(rhs), result(result), expected(expected), op(op)
+        rhs_value(rhs), result(result),  op(op), expected(true)
   {
     int displ = 0;
     while (expr[displ] && !__isalnum(expr[displ]))
@@ -111,6 +111,9 @@ public:
   {
     return expected == result;
   }
+
+  __host__ __device__
+  void set_expected(bool b) { expected = b; }
 
   //-----------------------------------
   // Specialize value printing here
@@ -181,15 +184,13 @@ private:
   int const line_number;
   char const *expr;
   LHS const lhs;
-  bool const expected;
 
 public:
 
   __host__ __device__
   comparator(char const *filename, int const line_number, char const *expr,
-             const LHS &lhs, const bool expected)
-      : filename(filename), line_number(line_number), expr(expr), lhs(lhs),
-        expected(expected)
+             const LHS &lhs)
+      : filename(filename), line_number(line_number), expr(expr), lhs(lhs)
   {
   }
 
@@ -202,7 +203,7 @@ private:
                                            const char *op)
   {
     return expression<LHS, RHS>(filename, line_number, expr, lhs, rhs, result,
-                                expected, op);
+                                op);
   }
                                            
 public:
@@ -262,20 +263,18 @@ private:
   const char *filename;
   const int linenumber;
   const char *expr;
-  const bool expected;
 
 public:
   __host__ __device__
-  eval(const char *filename, int linenumber, const char *expr, bool expected)
-      : filename(filename), linenumber(linenumber), expr(expr),
-        expected(expected)
+  eval(const char *filename, int linenumber, const char *expr)
+      : filename(filename), linenumber(linenumber), expr(expr)
   {}
 
   template <class LHS>
   __host__ __device__
   comparator<LHS> operator->*(LHS const &lhs)
   {
-    return comparator<LHS>(filename, linenumber, expr, lhs, expected);
+    return comparator<LHS>(filename, linenumber, expr, lhs);
   }
 }; // eval 
 
@@ -301,6 +300,7 @@ template<class LHS, class RHS>
 __host__ __device__
 void require_false(expression<LHS,RHS> expr)
 {
+  expr.set_expected(false);
   if (!expr)
   {
     expr.print("ASSERT_FALSE");
@@ -323,6 +323,7 @@ template<class LHS, class RHS>
 void __host__ __device__
 check_false(expression<LHS,RHS> expr)
 {
+  expr.set_expected(false);
   if (!expr)
   {
     expr.print("CHECK_FALSE");
@@ -331,8 +332,8 @@ check_false(expression<LHS,RHS> expr)
 
 
 } // namespace gassert
-#define REQUIRE(expr) (gassert::require(gassert::eval(__FILE__, __LINE__, #expr, true)->* expr))
-#define REQUIRE_FALSE(expr) (gassert::require_false(gassert::eval(__FILE__, __LINE__, #expr, false)->* expr))
-#define CHECK(expr) (gassert::check(gassert::eval(__FILE__, __LINE__, #expr, true)->* expr))
-#define CHECK_FALSE(expr) (gassert::check_false(gassert::eval(__FILE__, __LINE__, #expr, false)->* expr))
+#define REQUIRE(expr) (gassert::require(gassert::eval(__FILE__, __LINE__, #expr)->* expr))
+#define REQUIRE_FALSE(expr) (gassert::require_false(gassert::eval(__FILE__, __LINE__, #expr)->* expr))
+#define CHECK(expr) (gassert::check(gassert::eval(__FILE__, __LINE__, #expr)->* expr))
+#define CHECK_FALSE(expr) (gassert::check_false(gassert::eval(__FILE__, __LINE__, #expr)->* expr))
 
