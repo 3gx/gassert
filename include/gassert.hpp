@@ -128,7 +128,7 @@ public:
   }
 
   __host__ __device__
-  void print(const char *what, const char *aux="") const
+  void print(const char *what) const
   {
 #ifndef GASSERT_NO_COLOURS
 #define GASSERT_RESET      "\033[0m"
@@ -156,7 +156,7 @@ public:
     printf(")" GASSERT_RESET "\n");
     printf("with expansion:\n");
 
-    printf(GASSERT_GREEN "    %s(",aux);
+    printf(GASSERT_GREEN "    %s(", (expected ? "" : "!"));
     print_value(lhs_value);
     printf(" %s ", op.c_str());
     print_value(rhs_value);
@@ -301,7 +301,7 @@ void require_false(expression<LHS,RHS> expr)
 {
   if (!expr)
   {
-    expr.print("ASSERT_FALSE","!");
+    expr.print("ASSERT_FALSE");
     trap();
   }
 }
@@ -323,7 +323,7 @@ check_false(expression<LHS,RHS> expr)
 {
   if (!expr)
   {
-    expr.print("CHECK_FALSE","!");
+    expr.print("CHECK_FALSE");
   }
 }
 
